@@ -1,1 +1,1 @@
-src/PRU_bridgeClient.d: ../src/PRU_bridgeClient.c
+src/PRU_bridgeClient.o: ../src/PRU_bridgeClient.c

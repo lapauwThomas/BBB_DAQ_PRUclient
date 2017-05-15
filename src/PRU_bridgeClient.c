@@ -35,6 +35,15 @@
 
 int pru_adc;
 
+int maxRetries = 5;
+
+#define macLength 6
+#define samplePacketLength 24
+#define timestampLength 4
+
+
+uint8_t packet[macLength + samplePacketLength + timestampLength];
+
 int main(int argc , char *argv[])
 {
     int sock;
@@ -82,44 +91,60 @@ int main(int argc , char *argv[])
     //Connect to remote server
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
     {
-        perror("connect failed. Error");
+        perror("connect failed. Error \n");
         return 1;
     }
 
-    puts("Connected\n");
+    printf("Connected to server\n");
 
+    if( send(sock , mac , 6 , 0) < 0) {
+    	printf("Sending MAC failed");
+			return 1;
+	}
 
     ssize_t readpru, pru_adc_command;
-
-
+    int retries = 0;
+    while(retries < maxRetries){
     // open the PRU character device
        pru_adc = open("/dev/rpmsg_pru30", O_RDWR);
-       if (pru_adc_command < 0){
-                puts("The pru adc OPEN command failed.");
-                return -1;
+
+       if (pru_adc <= 0){
+                printf("The pru adc OPEN command failed.\n");
+                retries= retries+1;
+       }else{
+    	   	  //start the PRU DAQ
+    	   printf("Starting DAQ \n");
+		   pru_adc_command = write(pru_adc, "g", 2);
+		   if (pru_adc_command < 0){
+			   printf("The pru adc start command failed. \n");
+			 close(pru_adc);
+			 retries++;
+		   }else{
+			   retries = 10000; //break from loop
+		   }
        }
 
-       pru_adc_command = write(pru_adc, "g", 2);
-       if (pru_adc_command < 0){
-         puts("The pru adc start command failed.");
-         return -1;
+       if(retries == maxRetries){
+    	   printf("The pru adc OPEN command failed. - Stopped after %i retries \n",retries);
+    	   return -1;
        }
+    }
 
     //keep communicating with server
        uint8_t hello[] = "hello to server\n";
        send(sock , hello , 24 , 0);
-       uint8_t sampleBuf[24];
-       uint8_t dataBuff[24];
+       uint8_t sampleBuf[samplePacketLength+timestampLength];
+       uint8_t dataBuff[samplePacketLength];
     while(1)
     {
 
+    	readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
 
+    	transpose8(sampleBuf,dataBuff); //transpose the 24 data bytes
 
-
-    	puts("reading data \n");
-    	readpru = read(pru_adc, sampleBuf, 24);
-    	transpose8(sampleBuf,dataBuff);
-
+    	memcpy(packet, mac, macLength); //add mac to packet
+    	memcpy(packet+macLength, dataBuff, samplePacketLength); //copy the data bytes to packet
+    	memcpy(packet, mac, macLength); //add timestamp to
     	puts("Sending data \n");
     	if( send(sock , dataBuff , 24 , 0) < 0)
     	        {
