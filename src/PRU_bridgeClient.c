@@ -41,7 +41,7 @@ int maxRetries = 5;
 #define samplePacketLength 24
 #define timestampLength 4
 
-
+const float adcFact = 2.5/( 0x7FFFFF);
 uint8_t packet[macLength + samplePacketLength + timestampLength];
 
 int main(int argc , char *argv[])
@@ -87,9 +87,20 @@ int main(int argc , char *argv[])
     	readpru = read(pru_adc, sampleBuf, samplePacketLength);
         printf(" (#%i-%s) :\t",count,ctime(&t));
         transpose8(sampleBuf,dataBuf);
-        for (int i = 0; i < 24; i++){
-        	printf("%02X ", dataBuf[i]);
+        int32_t channelVals[8];
+        for(int k = 0; k<8;k++){
+        	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>8;
+        	channelVals[k] = tempval;
         }
+//        for (int i = 0; i < 24; i++){
+//        	printf("%02X ", dataBuf[i]);
+//        }
+//        printf("\n");
+
+        for (int i = 0; i < 8; i++){
+            printf("%f \t", (float)(channelVals[i]*adcFact));
+        }
+
         printf("\n");
         count ++;
     }
@@ -107,20 +118,27 @@ void transpose8(uint8_t A[24], uint8_t B[24]) {
 		a0 = A[i*8];  a1 = A[i*8+1];  a2 = A[i*8+2];  a3 = A[i*8+3];
 		   a4 = A[i*8+4];  a5 = A[i*8+5];  a6 = A[i*8+6];  a7 = A[i*8+7];
 
-		   B[i] 		= (a0 & 128)    | (a1 & 128)/2  | (a2 & 128)/4  | (a3 & 128)/8 |
-				   		(a4 & 128)/16 | (a5 & 128)/32 | (a6 & 128)/64 | (a7      )/128;
+		   B[i] 		= (a0 & 128)    | (a1 & 128)  | (a2 & 128)/4  | (a3 & 128)/8 |
+				   		(a4 & 128)/16 | (a5 & 128)/32 | (a6 & 128)/64 | (a7  & 128 )/128;
+
 		   B[i+3]		= (a0 &  64)*2  | (a1 &  64)    | (a2 &  64)/2  | (a3 &  64)/4 |
 				   	   (a4 &  64)/8  | (a5 &  64)/16 | (a6 &  64)/32 | (a7 &  64)/64;
+
 		   B[i+3*2] 	= (a0 &  32)*4  | (a1 &  32)*2  | (a2 &  32)    | (a3 &  32)/2 |
 				   	   (a4 &  32)/4  | (a5 &  32)/8  | (a6 &  32)/16 | (a7 &  32)/32;
+
 		   B[i+3*3] 	= (a0 &  16)*8  | (a1 &  16)*4  | (a2 &  16)*2  | (a3 &  16)   |
 				   	   (a4 &  16)/2  | (a5 &  16)/4  | (a6 &  16)/8  | (a7 &  16)/16;
+
 		   B[i+3*4] 	= (a0 &   8)*16 | (a1 &   8)*8  | (a2 &   8)*4  | (a3 &   8)*2 |
 				   	   (a4 &   8)    | (a5 &   8)/2  | (a6 &   8)/4  | (a7 &   8)/8;
+
 		   B[i+3*5]		= (a0 &   4)*32 | (a1 &   4)*16 | (a2 &   4)*8  | (a3 &   4)*4 |
 				   	   (a4 &   4)*2  | (a5 &   4)    | (a6 &   4)/2  | (a7 &   4)/4;
+
 		   B[i+3*6] 	= (a0 &   2)*64 | (a1 &   2)*32 | (a2 &   2)*16 | (a3 &   2)*8 |
 				   	   (a4 &   2)*4  | (a5 &   2)*2  | (a6 &   2)    | (a7 &   2)/2;
+
 		   B[i+3*7]	 	= (a0      )*128| (a1 &   1)*64 | (a2 &   1)*32 | (a3 &   1)*16|
 				   	   (a4 &   1)*8  | (a5 &   1)*4  | (a6 &   1)*2  | (a7 &   1);
 	}
