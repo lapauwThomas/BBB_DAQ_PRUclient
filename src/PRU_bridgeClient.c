@@ -89,13 +89,13 @@ int main(int argc , char *argv[])
         transpose8(sampleBuf,dataBuf);
         int32_t channelVals[8];
         for(int k = 0; k<8;k++){
-        	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>8;
+        	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>7;
         	channelVals[k] = tempval;
         }
-//        for (int i = 0; i < 24; i++){
-//        	printf("%02X ", dataBuf[i]);
-//        }
-//        printf("\n");
+        for (int i = 0; i < 24; i++){
+       	printf("%02X ", dataBuf[i]);
+       }
+       printf("\n");
 
         for (int i = 0; i < 8; i++){
             printf("%f \t", (float)(channelVals[i]*adcFact));
@@ -139,7 +139,7 @@ void transpose8(uint8_t A[24], uint8_t B[24]) {
 		   B[i+3*6] 	= (a0 &   2)*64 | (a1 &   2)*32 | (a2 &   2)*16 | (a3 &   2)*8 |
 				   	   (a4 &   2)*4  | (a5 &   2)*2  | (a6 &   2)    | (a7 &   2)/2;
 
-		   B[i+3*7]	 	= (a0      )*128| (a1 &   1)*64 | (a2 &   1)*32 | (a3 &   1)*16|
+		   B[i+3*7]	 	= (a0 &   1 )*128| (a1 &   1)*64 | (a2 &   1)*32 | (a3 &   1)*16|
 				   	   (a4 &   1)*8  | (a5 &   1)*4  | (a6 &   1)*2  | (a7 &   1);
 	}
 }
