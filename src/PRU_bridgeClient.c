@@ -31,7 +31,7 @@
 #include <linux/if.h>
 #include <netdb.h>
 #include <stdio.h>
-
+#include <time.h>
 
 int pru_adc;
 
@@ -46,62 +46,8 @@ uint8_t packet[macLength + samplePacketLength + timestampLength];
 
 int main(int argc , char *argv[])
 {
-    int sock;
-    struct sockaddr_in server;
-    char message[1000] , server_reply[2000];
 
-
-    //getting mac from ETH0
-
-    char mac[6];
-    getMac(mac);
-
-    printf("device MAC: ");
-
-    for (int i = 0; i < 6; i++){
-    	printf("%02X:", mac[i]);
-    }
-    printf("\n");
-
-
-    //Create socket
-    sock = socket(AF_INET , SOCK_STREAM , 0);
-    if (sock == -1)
-    {
-        printf("Could not create socket");
-    }
-    puts("Socket created");
-    if(argc > 1){
-    	printf("Connecting to: %s \n", argv[1]);
-    	server.sin_addr.s_addr = inet_addr(argv[1]);
-    }else{
-    	printf("Connecting to localhost \n");
-    	server.sin_addr.s_addr = inet_addr("127.0.0.1");
-    }
-    if(argc > 2){
-    	printf("Connecting to port: %s \n", argv[2]);
-    	uint16_t portNumber = (uint16_t)atoi(argv[2]);
-    	server.sin_port = htons( portNumber );
-    }else{
-    	printf("Connecting to std port 1520 \n");
-    	server.sin_port = htons( 1520 );
-    }
-    server.sin_family = AF_INET;
-
-    //Connect to remote server
-    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
-    {
-        perror("connect failed. Error \n");
-        return 1;
-    }
-
-    printf("Connected to server\n");
-
-    if( send(sock , mac , 6 , 0) < 0) {
-    	printf("Sending MAC failed");
-			return 1;
-	}
-
+	printf("Connecting to PRU\n");
     ssize_t readpru, pru_adc_command;
     int retries = 0;
     while(retries < maxRetries){
@@ -129,51 +75,25 @@ int main(int argc , char *argv[])
     	   return -1;
        }
     }
+    time_t t;
+    time(&t);
 
-    //keep communicating with server
-       uint8_t hello[] = "hello to server\n";
-       send(sock , hello , 24 , 0);
-       uint8_t sampleBuf[samplePacketLength+timestampLength];
-       uint8_t dataBuff[samplePacketLength];
+       uint8_t sampleBuf[samplePacketLength];
+       uint8_t dataBuf[samplePacketLength];
+       int count = 0;
     while(1)
     {
 
-    	readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
-
-    	transpose8(sampleBuf,dataBuff); //transpose the 24 data bytes
-
-    	memcpy(packet, mac, macLength); //add mac to packet
-    	memcpy(packet+macLength, dataBuff, samplePacketLength); //copy the data bytes to packet
-    	memcpy(packet, mac, macLength); //add timestamp to
-    	puts("Sending data \n");
-    	if( send(sock , dataBuff , 24 , 0) < 0)
-    	        {
-    	            puts("Send failed");
-    	            return 1;
-    	        }
-
-        /*printf("Enter message : ");
-        scanf("%s" , message);
-
-        //Send some data
-        if( send(sock , message , strlen(message) , 0) < 0)
-        {
-            puts("Send failed");
-            return 1;
+    	readpru = read(pru_adc, sampleBuf, samplePacketLength);
+        printf(" (#%i-%s) :\t",count,ctime(&t));
+        transpose8(sampleBuf,dataBuf);
+        for (int i = 0; i < 24; i++){
+        	printf("%02X ", dataBuf[i]);
         }
-
-        //Receive a reply from the server
-        if( recv(sock , server_reply , 2000 , 0) < 0)
-        {
-            puts("recv failed");
-            break;
-        }
-
-        puts("Server reply :");
-        puts(server_reply);*/
+        printf("\n");
+        count ++;
     }
 
-    close(sock);
     return 0;
 }
 
