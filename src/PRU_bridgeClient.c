@@ -32,13 +32,16 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sched.h>
 
 int pru_adc;
 
 int maxRetries = 5;
 
 #define macLength 6
-#define samplePacketLength 24
+#define samplePacketLength (24+4)*17
 #define timestampLength 4
 
 const float adcFact = 2.5/( 0x7FFFFF);
@@ -46,6 +49,14 @@ uint8_t packet[macLength + samplePacketLength + timestampLength];
 
 int main(int argc , char *argv[])
 {
+	//setpriority(PRIO_PROCESS, 0, -20);
+
+
+	struct sched_param param;
+	param.sched_priority = 99;
+	sched_setscheduler(0, SCHED_RR, & param);
+
+
 	printf("opening file\n");
 	 time_t t;
 	    time(&t);
@@ -105,8 +116,9 @@ int main(int argc , char *argv[])
 //        }
 //
 //        printf("\n");
-    	uint32_t sampleNo = (sampleBuf[0]<<24) +(sampleBuf[1]<<16)+(sampleBuf[2]<<8) +(sampleBuf[3]);
-        transpose8(sampleBuf+4,dataBuf);
+    	for(int z=0;z<17;z++){
+    	uint32_t sampleNo = (sampleBuf[24*z+0]<<24) +(sampleBuf[24*z+1]<<16)+(sampleBuf[24*z+2]<<8) +(sampleBuf[24*z+3]);
+        transpose8(sampleBuf+24*z+4,dataBuf);
         int32_t channelVals[8];
         for(int k = 0; k<8;k++){
         	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>8;
@@ -130,9 +142,12 @@ int main(int argc , char *argv[])
 
                 fprintf(f,";\n");
         count ++;
+    	}
+
     }
 
     return 0;
+
 }
 
 
