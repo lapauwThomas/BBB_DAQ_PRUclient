@@ -133,20 +133,20 @@ int main(int argc , char *argv[])
     //keep communicating with server
        uint8_t hello[] = "hello to server\n";
        send(sock , hello , 24 , 0);
-       uint8_t sampleBuf[samplePacketLength+timestampLength];
+       uint8_t sampleBuf[17*(24+4)];
        uint8_t dataBuff[samplePacketLength];
     while(1)
     {
 
-    	readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
+    	readpru = read(pru_adc, sampleBuf, 17*(24+4));
 
-    	transpose8(sampleBuf,dataBuff); //transpose the 24 data bytes
+    	//transpose8(sampleBuf,dataBuff); //transpose the 24 data bytes
 
-    	memcpy(packet, mac, macLength); //add mac to packet
-    	memcpy(packet+macLength, dataBuff, samplePacketLength); //copy the data bytes to packet
-    	memcpy(packet, mac, macLength); //add timestamp to
-    	puts("Sending data \n");
-    	if( send(sock , dataBuff , 24 , 0) < 0)
+    	//memcpy(packet, mac, macLength); //add mac to packet
+    //	memcpy(packet+macLength, dataBuff, samplePacketLength); //copy the data bytes to packet
+    //	memcpy(packet, mac, macLength); //add timestamp to
+    //	puts("Sending data \n");
+    	if( send(sock , sampleBuf , 17*(24+4) , 0) < 0)
     	        {
     	            puts("Send failed");
     	            return 1;
