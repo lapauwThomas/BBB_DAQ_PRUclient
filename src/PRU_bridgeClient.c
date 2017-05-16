@@ -46,6 +46,22 @@ uint8_t packet[macLength + samplePacketLength + timestampLength];
 
 int main(int argc , char *argv[])
 {
+	printf("opening file\n");
+	 time_t t;
+	    time(&t);
+
+	       uint8_t sampleBuf[samplePacketLength];
+	       uint8_t dataBuf[samplePacketLength];
+	       int count = 0;
+
+	       FILE *f = fopen("file.txt", "w");
+	       if (f == NULL)
+	       {
+	           printf("Error opening file!\n");
+	           exit(1);
+	       }
+
+
 
 	printf("Connecting to PRU\n");
     ssize_t readpru, pru_adc_command;
@@ -75,33 +91,44 @@ int main(int argc , char *argv[])
     	   return -1;
        }
     }
-    time_t t;
-    time(&t);
 
-       uint8_t sampleBuf[samplePacketLength];
-       uint8_t dataBuf[samplePacketLength];
-       int count = 0;
+
+
+
     while(1)
     {
 
     	readpru = read(pru_adc, sampleBuf, samplePacketLength);
-        printf(" (#%i-%s) :\t",count,ctime(&t));
-        transpose8(sampleBuf,dataBuf);
+     //   printf(" (#%i-%s) :\n",count,ctime(&t));
+//        for (int i = 0; i < 24; i++){
+//        	printf("%02X ", sampleBuf[i]);
+//        }
+//
+//        printf("\n");
+    	uint32_t sampleNo = (sampleBuf[0]<<24) +(sampleBuf[1]<<16)+(sampleBuf[2]<<8) +(sampleBuf[3]);
+        transpose8(sampleBuf+4,dataBuf);
         int32_t channelVals[8];
         for(int k = 0; k<8;k++){
-        	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>7;
+        	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>8;
         	channelVals[k] = tempval;
         }
-        for (int i = 0; i < 24; i++){
-       	printf("%02X ", dataBuf[i]);
-       }
-       printf("\n");
+//        for (int i = 0; i < 24; i++){
+//       	printf("%02X ", dataBuf[i]);
+//       }
+//       printf("\n");
 
-        for (int i = 0; i < 8; i++){
-            printf("%f \t", (float)(channelVals[i]*adcFact));
-        }
+//        for (int i = 0; i < 8; i++){
+//            printf("%.10f \t", (float)((channelVals[i])*adcFact));
+//        }
+//
+//        printf("\n");
 
-        printf("\n");
+           fprintf(f,"%i, \t %i,\t",count,sampleNo);
+                for (int i = 0; i < 8; i++){
+                    fprintf(f,"%.10f, \t", (float)((channelVals[i])*adcFact));
+                }
+
+                fprintf(f,";\n");
         count ++;
     }
 
@@ -118,7 +145,7 @@ void transpose8(uint8_t A[24], uint8_t B[24]) {
 		a0 = A[i*8];  a1 = A[i*8+1];  a2 = A[i*8+2];  a3 = A[i*8+3];
 		   a4 = A[i*8+4];  a5 = A[i*8+5];  a6 = A[i*8+6];  a7 = A[i*8+7];
 
-		   B[i] 		= (a0 & 128)    | (a1 & 128)  | (a2 & 128)/4  | (a3 & 128)/8 |
+		   B[i] 		= (a0 & 128)    | (a1 & 128)/2  | (a2 & 128)/4  | (a3 & 128)/8 |
 				   		(a4 & 128)/16 | (a5 & 128)/32 | (a6 & 128)/64 | (a7  & 128 )/128;
 
 		   B[i+3]		= (a0 &  64)*2  | (a1 &  64)    | (a2 &  64)/2  | (a3 &  64)/4 |
