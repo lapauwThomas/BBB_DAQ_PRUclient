@@ -52,11 +52,6 @@ int main(int argc , char *argv[])
 	//setpriority(PRIO_PROCESS, 0, -20);
 
 
-	struct sched_param param;
-	param.sched_priority = 99;
-	sched_setscheduler(0, SCHED_RR, & param);
-
-
 	printf("opening file\n");
 	 time_t t;
 	    time(&t);
@@ -110,20 +105,21 @@ int main(int argc , char *argv[])
     {
 
     	readpru = read(pru_adc, sampleBuf, samplePacketLength);
+    	fwrite(sampleBuf,1,samplePacketLength,f);
      //   printf(" (#%i-%s) :\n",count,ctime(&t));
 //        for (int i = 0; i < 24; i++){
 //        	printf("%02X ", sampleBuf[i]);
 //        }
 //
-//        printf("\n");
-    	for(int z=0;z<17;z++){
-    	uint32_t sampleNo = (sampleBuf[24*z+0]<<24) +(sampleBuf[24*z+1]<<16)+(sampleBuf[24*z+2]<<8) +(sampleBuf[24*z+3]);
-        transpose8(sampleBuf+24*z+4,dataBuf);
-        int32_t channelVals[8];
-        for(int k = 0; k<8;k++){
-        	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>8;
-        	channelVals[k] = tempval;
-        }
+////        printf("\n");
+//    	for(int z=0;z<17;z++){
+//    	uint32_t sampleNo = (sampleBuf[24*z+0]<<24) +(sampleBuf[24*z+1]<<16)+(sampleBuf[24*z+2]<<8) +(sampleBuf[24*z+3]);
+      //  transpose8(sampleBuf+24*z+4,dataBuf);
+//        int32_t channelVals[8];
+//        for(int k = 0; k<8;k++){
+//        	int32_t tempval = ((dataBuf[23-3*k-2]<<24) + (dataBuf[23-3*k-1]<<16) + (dataBuf[23-3*k]<<8))>>8;
+//        	channelVals[k] = tempval;
+//        }
 //        for (int i = 0; i < 24; i++){
 //       	printf("%02X ", dataBuf[i]);
 //       }
@@ -135,14 +131,14 @@ int main(int argc , char *argv[])
 //
 //        printf("\n");
 
-           fprintf(f,"%i, \t %i,\t",count,sampleNo);
-                for (int i = 0; i < 8; i++){
-                    fprintf(f,"%.10f, \t", (float)((channelVals[i])*adcFact));
-                }
-
-                fprintf(f,";\n");
-        count ++;
-    	}
+//           fprintf(f,"%i, \t %i,\t",count,sampleNo);
+//                for (int i = 0; i < 8; i++){
+//                    fprintf(f,"%.10f, \t", (float)((channelVals[i])*adcFact));
+//                }
+//
+//                fprintf(f,";\n");
+//        count ++;
+    	//}
 
     }
 
