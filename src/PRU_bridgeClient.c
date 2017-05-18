@@ -135,22 +135,23 @@ int main(int argc , char *argv[])
        send(sock , hello , 24 , 0);
        uint8_t sampleBuf[17*(24+4)];
        uint8_t dataBuff[samplePacketLength];
+
     while(1)
     {
 
     	readpru = read(pru_adc, sampleBuf, 17*(24+4));
-
+    	send(sock , sampleBuf , 17*(24+4) , 0);
     	//transpose8(sampleBuf,dataBuff); //transpose the 24 data bytes
 
     	//memcpy(packet, mac, macLength); //add mac to packet
     //	memcpy(packet+macLength, dataBuff, samplePacketLength); //copy the data bytes to packet
     //	memcpy(packet, mac, macLength); //add timestamp to
     //	puts("Sending data \n");
-    	if( send(sock , sampleBuf , 17*(24+4) , 0) < 0)
-    	        {
-    	            puts("Send failed");
-    	            return 1;
-    	        }
+//    	if( send(sock , sampleBuf , 17*(24+4) , 0) < 0)
+//    	        {
+//    	            puts("Send failed");
+//    	            return 1;
+//    	        }
 
         /*printf("Enter message : ");
         scanf("%s" , message);
