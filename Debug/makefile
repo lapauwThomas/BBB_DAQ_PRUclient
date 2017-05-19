@@ -23,19 +23,19 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: PRU_bridgeClient
+all: BBB_DAQ_PRUclient
 
 # Tool invocations
-PRU_bridgeClient: $(OBJS) $(USER_OBJS)
+BBB_DAQ_PRUclient: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Linker'
-	arm-linux-gnueabihf-gcc  -o "PRU_bridgeClient" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-linux-gnueabihf-gcc  -o "BBB_DAQ_PRUclient" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) PRU_bridgeClient
+	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) BBB_DAQ_PRUclient
 	-@echo ' '
 
 .PHONY: all clean dependents
