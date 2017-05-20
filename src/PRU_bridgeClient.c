@@ -171,31 +171,57 @@ int main(int argc , char *argv[])
        }
     }
     printf(".\n");
+    	uint8_t hello[] = "hello to server\n";
+    	send(sock , hello , 24 , 0);
+    printf(".\n");
+
+int count = 0;
 	while(1)
 	{
-		readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
+		readpru = read(pru_adc, sampleBuf, (samplePacketLength+timestampLength));
 
-		printf("MAIN Time: %s ",ctime(&ntp_time));
+	//	printf("MAIN Time: %s ",ctime(&ntp_time));
 		ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
-		sampleBuf[(samplePacketLength+timestampLength)*17] = (uint8_t)(ntp_time_send&0xFF000000);
-		sampleBuf[(samplePacketLength+timestampLength)*17+1] = (uint8_t)(ntp_time_send&0x00FF0000);
-		sampleBuf[(samplePacketLength+timestampLength)*17+2] = (uint8_t)(ntp_time_send&0x0000FF00);
-		sampleBuf[(samplePacketLength+timestampLength)*17+3] = (uint8_t)(ntp_time_send&0x000000FF);
-    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)*17+4 , 0) < 0)
+	sampleBuf[(samplePacketLength+timestampLength)] =   (uint8_t)((ntp_time_send&0xFF000000)>>24);
+	sampleBuf[(samplePacketLength+timestampLength)+1] = (uint8_t)((ntp_time_send&0x00FF0000)>>16);
+	sampleBuf[(samplePacketLength+timestampLength)+2] = (uint8_t)((ntp_time_send&0x0000FF00)>>8);
+	sampleBuf[(samplePacketLength+timestampLength)+3] = (uint8_t)((ntp_time_send&0x000000FF));
+    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)+4 , 0) < 0)
 		{
+    	    /* some management */
+    	    pthread_join(new_thread, NULL);
+    	    pthread_mutex_destroy(&mutex);
+    	    close(sock);
 			puts("Send failed");
 			return 1;
 		}
+    	if(count > 2000){
 
-		
-			
+    		    	    /* some management */
+    		    	    pthread_join(new_thread, NULL);
+    		    	    pthread_mutex_destroy(&mutex);
+    		    	    close(sock);
+    					puts("Send failed");
+    					return 1;
 
- /*   	if( send(sock , hello , 24 , 0)  < 0)
-		{
-			puts("Send failed");
-			return 1;
-		}
-*/
+    	}
+    	count++;
+//
+//
+//    	readpru = read(pru_adc, sampleBuf, (samplePacketLength+timestampLength)*17);
+//
+//    	//	printf("MAIN Time: %s ",ctime(&ntp_time));
+//    	//	ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
+//    	sampleBuf[(samplePacketLength+timestampLength)*17] =   (uint8_t)((ntp_time_send&0xFF000000)>>24);
+//    	sampleBuf[(samplePacketLength+timestampLength)*17+1] = (uint8_t)((ntp_time_send&0x00FF0000)>>16);
+//    	sampleBuf[(samplePacketLength+timestampLength)*17+2] = (uint8_t)((ntp_time_send&0x0000FF00)>>8);
+//    	sampleBuf[(samplePacketLength+timestampLength)*17+3] = (uint8_t)((ntp_time_send&0x000000FF);
+//        	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)*17 , 0) < 0)
+//    		{
+//    			puts("Send failed");
+//    			return 1;
+//    		}
+
 
     }
     
