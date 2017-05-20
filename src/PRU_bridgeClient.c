@@ -22,6 +22,7 @@ uint32_t ntp_time;
 
 int main(int argc , char *argv[])
 {
+    printf("starting Program");
 	/*	Initialise server connection  */
 	int sock;
     struct sockaddr_in server;
@@ -77,11 +78,19 @@ int main(int argc , char *argv[])
 			return 1;
 	}
 
-
+    printf("starting NTP stuff");
 
 	/*	Initialise NTP part	*/
 	pthread_t new_thread;
-	char *hostname="85.88.55.5";
+	char *hostname;
+    if(argc > 3){
+    	printf("Connecting to ntp server: %s \n", argv[3]);
+    	hostname= argv[3];
+    }else{
+    	printf("Connecting to ntp server: 85.88.55.5 \n");
+    	hostname="85.88.55.5";
+    }
+	//char *hostname="85.88.55.5";
 	int portno=123;     //NTP is port 123
 	//struct in_addr ipaddr;        //
 	struct protoent *proto;     //
@@ -124,7 +133,14 @@ int main(int argc , char *argv[])
         printf("\n mutex init failed\n");
         return 1;
     }
-	
+
+
+//
+//	//keep communicating with server
+//	uint8_t hello[] = "hello to server\n";
+//	send(sock , hello , 24 , 0);
+	uint8_t sampleBuf[(samplePacketLength+timestampLength)*17+4]; //+4 for ntp time, which is 32 bit
+	uint32_t ntp_time_send;
 
 
 	// open the PRU character device
@@ -154,19 +170,12 @@ int main(int argc , char *argv[])
     	   return -1;
        }
     }
-
-
-	//keep communicating with server
-	uint8_t hello[] = "hello to server\n";
-	send(sock , hello , 24 , 0);
-	uint8_t sampleBuf[(samplePacketLength+timestampLength)*17+4]; //+4 for ntp time, which is 32 bit
-	uint32_t ntp_time_send;
-
-	printf("Starting main thread\n");
-
+    printf(".\n");
 	while(1)
 	{
 		readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
+
+		printf("MAIN Time: %s ",ctime(&ntp_time));
 		ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
 		sampleBuf[(samplePacketLength+timestampLength)*17] = (uint8_t)(ntp_time_send&0xFF000000);
 		sampleBuf[(samplePacketLength+timestampLength)*17+1] = (uint8_t)(ntp_time_send&0x00FF0000);
@@ -234,15 +243,15 @@ void * ntp( void * ntp_thread_arg )
 	while(1)
 	{
 		// send NTP message
-		printf("sending data..\n");
+		//printf("sending data..\n");
 		i=sendto(s,msg,sizeof(msg),0,(struct sockaddr *)&server_addr,sizeof(server_addr));
-		perror("sendto");
+		//perror("sendto");
 		
 		// get response
 		struct sockaddr saddr;
 		socklen_t saddr_l = sizeof (saddr);
 		i=recvfrom(s,buf,48,0,&saddr,&saddr_l);
-		perror("recvfr:");
+		//perror("recvfr:");
 
 		//We get 12 long words back in Network order
 		
@@ -278,17 +287,17 @@ void * ntp( void * ntp_thread_arg )
 
 
 		//#compare to system time
-		printf("Time: %s",ctime(&tmit));
-		i = time(0);
+		printf("SECOND Time: %s ",ctime(&tmit));
+	//	i = time(0);
 		//printf("%d-%d=%d\n",i,tmit,i-tmit);
-		printf("System time is %d seconds off\n",i-tmit);
+		//printf("System time is %d seconds off\n",i-tmit);
 
 		/* mutex for thread synchrinisation */
 		pthread_mutex_lock(&mutex);
 		ntp_time = tmit;
 		pthread_mutex_unlock(&mutex);
 		
-		usleep(100000); //sleep for 1/10th of a second
+		usleep(300000); //sleep for 1/10th of a second
 	}	
 }
 
