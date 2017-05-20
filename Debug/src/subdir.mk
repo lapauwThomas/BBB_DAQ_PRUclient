@@ -4,19 +4,13 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../src/PRU_bridgeClient.c \
-../src/ntp.c \
-../src/ntp2.c 
+../src/PRU_bridgeClient.c 
 
 OBJS += \
-./src/PRU_bridgeClient.o \
-./src/ntp.o \
-./src/ntp2.o 
+./src/PRU_bridgeClient.o 
 
 C_DEPS += \
-./src/PRU_bridgeClient.d \
-./src/ntp.d \
-./src/ntp2.d 
+./src/PRU_bridgeClient.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

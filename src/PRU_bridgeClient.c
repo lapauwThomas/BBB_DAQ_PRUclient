@@ -2,23 +2,7 @@
 * the other thread will fetch the NTP time.
 */
  
-#include <stdio.h> //printf
-#include <string.h> //strelen
-#include <sys/socket.h> //socket
-#include <arpa/inet.h> //inet_addr
-#include <inttypes.h> //strtoumax
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <time.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <linux/if.h>
-#include <sys/ioctl.h>
+#include "PRU_bridgeClient.h"
 
 
 #define macLength 6
@@ -30,14 +14,6 @@
 int pru_adc;
 int maxRetries = 5;
 uint8_t packet[macLength + samplePacketLength + timestampLength];
-
-
-/*	define struct to pass arguments to pthread_create()	*/
-typedef struct Thread_args_s
-{
-	int s;
-	struct sockaddr_in server_addr;
-} thread_args_s;
 
 
 
@@ -139,34 +115,34 @@ int main(int argc , char *argv[])
 		return 1;
 	}
 
-
-	// open the PRU character device
-    ssize_t readpru, pru_adc_command;
-    int retries = 0;
-    while(retries < maxRetries){
-       pru_adc = open("/dev/rpmsg_pru30", O_RDWR);
-
-       if (pru_adc <= 0){
-                printf("The pru adc OPEN command failed.\n");
-                retries= retries+1;
-       }else{
-    	   	  //start the PRU DAQ
-    	   printf("Starting DAQ \n");
-		   pru_adc_command = write(pru_adc, "g", 2);
-		   if (pru_adc_command < 0){
-			   printf("The pru adc start command failed. \n");
-			 close(pru_adc);
-			 retries++;
-		   }else{
-			   retries = 10000; //break from loop
-		   }
-       }
-
-       if(retries == maxRetries){
-    	   printf("The pru adc OPEN command failed. - Stopped after %i retries \n",retries);
-    	   return -1;
-       }
-    }
+//
+//	// open the PRU character device
+//    ssize_t readpru, pru_adc_command;
+//    int retries = 0;
+//    while(retries < maxRetries){
+//       pru_adc = open("/dev/rpmsg_pru30", O_RDWR);
+//
+//       if (pru_adc <= 0){
+//                printf("The pru adc OPEN command failed.\n");
+//                retries= retries+1;
+//       }else{
+//    	   	  //start the PRU DAQ
+//    	   printf("Starting DAQ \n");
+//		   pru_adc_command = write(pru_adc, "g", 2);
+//		   if (pru_adc_command < 0){
+//			   printf("The pru adc start command failed. \n");
+//			 close(pru_adc);
+//			 retries++;
+//		   }else{
+//			   retries = 10000; //break from loop
+//		   }
+//       }
+//
+//       if(retries == maxRetries){
+//    	   printf("The pru adc OPEN command failed. - Stopped after %i retries \n",retries);
+//    	   return -1;
+//       }
+//    }
 
 
 	//keep communicating with server
@@ -180,7 +156,13 @@ int main(int argc , char *argv[])
 	while(1)
 	{
 		//readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
-    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)*17 , 0) < 0)
+//    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)*17 , 0) < 0)
+//    	        {
+//    	            puts("Send failed");
+//    	            return 1;
+//    	        }
+
+    	if( send(sock , hello , 24 , 0)  < 0)
     	        {
     	            puts("Send failed");
     	            return 1;
@@ -194,21 +176,6 @@ int main(int argc , char *argv[])
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -290,7 +257,7 @@ void * ntp( void * ntp_thread_arg )
 
 		//#compare to system time
 		printf("Time: %s",ctime(&tmit));
-		i=time(0);
+		i = time(0);
 		//printf("%d-%d=%d\n",i,tmit,i-tmit);
 		printf("System time is %d seconds off\n",i-tmit);
 
@@ -321,165 +288,6 @@ int getMac(char mac[6])
 }
 
 
-int main(int argc , char *argv[])
-{
-	/*	Initialise server connection  */
-	int sock;
-    struct sockaddr_in server;
-    //char message[1000] , server_reply[2000];
-
-    //getting mac from ETH0
-    char mac[6];
-    getMac(mac);
-
-    printf("device MAC: ");
-
-    for (int i = 0; i < 6; i++){
-    	printf("%02X:", mac[i]);
-    }
-    printf("\n");
-
-
-    //Create socket
-    sock = socket(AF_INET , SOCK_STREAM , 0);
-    if (sock == -1)
-    {
-        printf("Could not create socket");
-    }
-    puts("Socket created");
-    if(argc > 1){
-    	printf("Connecting to: %s \n", argv[1]);
-    	server.sin_addr.s_addr = inet_addr(argv[1]);
-    }else{
-    	printf("Connecting to localhost \n");
-    	server.sin_addr.s_addr = inet_addr("127.0.0.1");
-    }
-    if(argc > 2){
-    	printf("Connecting to port: %s \n", argv[2]);
-    	uint16_t portNumber = (uint16_t)atoi(argv[2]);
-    	server.sin_port = htons( portNumber );
-    }else{
-    	printf("Connecting to std port 1520 \n");
-    	server.sin_port = htons( 1520 );
-    }
-    server.sin_family = AF_INET;
-
-    //Connect to remote server
-    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
-    {
-        perror("connect failed. Error \n");
-        return 1;
-    }
-
-    printf("Connected to server\n");
-
-    if( send(sock , mac , 6 , 0) < 0) {
-    	printf("Sending MAC failed");
-			return 1;
-	}
-
-
-
-	/*	Initialise NTP part	*/
-	pthread_t new_thread;
-	char *hostname="85.88.55.5";
-	int portno=123;     //NTP is port 123
-	//struct in_addr ipaddr;        //  
-	struct protoent *proto;     //
-	struct sockaddr_in server_addr;
-	int s;  // socket
-	
-	//use Socket;
-	//
-	//#we use the system call to open a UDP socket
-	//socket(SOCKET, PF_INET, SOCK_DGRAM, getprotobyname("udp")) or die "socket: $!";
-	proto=getprotobyname("udp");
-	s=socket(PF_INET, SOCK_DGRAM, proto->p_proto);
-	perror("socket");
-	//
-	//#convert hostname to ipaddress if needed
-	//$ipaddr   = inet_aton($HOSTNAME);
-	memset( &server_addr, 0, sizeof( server_addr ));
-	server_addr.sin_family=AF_INET;
-	server_addr.sin_addr.s_addr = inet_addr(hostname);
-	//argv[1] );
-	//i   = inet_aton(hostname,&server_addr.sin_addr);
-	server_addr.sin_port=htons(portno);
-	//printf("ipaddr (in hex): %x\n",server_addr.sin_addr);
-
-	/* create struct to pass arguments to new thread */
-	thread_args_s ntp_thread_arg;
-	ntp_thread_arg.s = s;
-	ntp_thread_arg.server_addr = server_addr;
-
-	/* create second thread	*/
-	if(pthread_create(&new_thread, NULL, ntp, (void *)(&ntp_thread_arg) )) 
-	{
-		fprintf(stderr, "Error creating thread\n");
-		return 1;
-	}
-
-
-	// open the PRU character device
-    ssize_t readpru, pru_adc_command;
-    int retries = 0;
-    while(retries < maxRetries){
-       pru_adc = open("/dev/rpmsg_pru30", O_RDWR);
-
-       if (pru_adc <= 0){
-                printf("The pru adc OPEN command failed.\n");
-                retries= retries+1;
-       }else{
-    	   	  //start the PRU DAQ
-    	   printf("Starting DAQ \n");
-		   pru_adc_command = write(pru_adc, "g", 2);
-		   if (pru_adc_command < 0){
-			   printf("The pru adc start command failed. \n");
-			 close(pru_adc);
-			 retries++;
-		   }else{
-			   retries = 10000; //break from loop
-		   }
-       }
-
-       if(retries == maxRetries){
-    	   printf("The pru adc OPEN command failed. - Stopped after %i retries \n",retries);
-    	   return -1;
-       }
-    }
-
-   
-	//keep communicating with server
-	uint8_t hello[] = "hello to server\n";
-	send(sock , hello , 24 , 0);
-	uint8_t sampleBuf[samplePacketLength+timestampLength];
-	uint8_t dataBuff[samplePacketLength];
-	
-	printf("Starting main thread\n");
-	
-	while(1)
-	{
-		//readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
-    	if( send(sock , dataBuff , 24 , 0) < 0)
-    	        {
-    	            puts("Send failed");
-    	            return 1;
-    	        }
-    	        
-
-    }
-
-    close(sock);
-    return 0;
-		
-
-}
-	
-
-
-
-	
-	
 	
 	
 	

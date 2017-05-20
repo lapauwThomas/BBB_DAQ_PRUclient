@@ -29,7 +29,7 @@ all: BBB_DAQ_PRUclient
 BBB_DAQ_PRUclient: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Linker'
-	arm-linux-gnueabihf-gcc  -o "BBB_DAQ_PRUclient" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-linux-gnueabihf-gcc -pthread -o "BBB_DAQ_PRUclient" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
