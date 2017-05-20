@@ -1,3 +1,5 @@
+/* Version: Sat, 20 May 2017 11:04 */
+
 #include <stdio.h> //printf
 #include <string.h> //strelen
 #include <sys/socket.h> //socket

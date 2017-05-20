@@ -1,6 +1,8 @@
 /* This code will run 2 threads: one thread writes ADC data to the server, 
 * the other thread will fetch the NTP time.
 */
+
+/* Version: Sat, 20 May 2017 11:04 */
  
 #include "PRU_bridgeClient.h"
 
@@ -14,7 +16,8 @@
 int pru_adc;
 int maxRetries = 5;
 uint8_t packet[macLength + samplePacketLength + timestampLength];
-
+pthread_mutex_t mutex;
+uint32_t ntp_time;
 
 
 int main(int argc , char *argv[])
@@ -114,63 +117,82 @@ int main(int argc , char *argv[])
 		fprintf(stderr, "Error creating thread\n");
 		return 1;
 	}
+	
+	/* Create mutex for shared ntp_time variable	*/
+	if (pthread_mutex_init(&mutex, NULL) != 0)
+    {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
+	
 
-//
-//	// open the PRU character device
-//    ssize_t readpru, pru_adc_command;
-//    int retries = 0;
-//    while(retries < maxRetries){
-//       pru_adc = open("/dev/rpmsg_pru30", O_RDWR);
-//
-//       if (pru_adc <= 0){
-//                printf("The pru adc OPEN command failed.\n");
-//                retries= retries+1;
-//       }else{
-//    	   	  //start the PRU DAQ
-//    	   printf("Starting DAQ \n");
-//		   pru_adc_command = write(pru_adc, "g", 2);
-//		   if (pru_adc_command < 0){
-//			   printf("The pru adc start command failed. \n");
-//			 close(pru_adc);
-//			 retries++;
-//		   }else{
-//			   retries = 10000; //break from loop
-//		   }
-//       }
-//
-//       if(retries == maxRetries){
-//    	   printf("The pru adc OPEN command failed. - Stopped after %i retries \n",retries);
-//    	   return -1;
-//       }
-//    }
+
+	// open the PRU character device
+    ssize_t readpru, pru_adc_command;
+    int retries = 0;
+    while(retries < maxRetries){
+       pru_adc = open("/dev/rpmsg_pru30", O_RDWR);
+
+       if (pru_adc <= 0){
+                printf("The pru adc OPEN command failed.\n");
+                retries= retries+1;
+       }else{
+    	   	  //start the PRU DAQ
+    	   printf("Starting DAQ \n");
+		   pru_adc_command = write(pru_adc, "g", 2);
+		   if (pru_adc_command < 0){
+			   printf("The pru adc start command failed. \n");
+			 close(pru_adc);
+			 retries++;
+		   }else{
+			   retries = 10000; //break from loop
+		   }
+       }
+
+       if(retries == maxRetries){
+    	   printf("The pru adc OPEN command failed. - Stopped after %i retries \n",retries);
+    	   return -1;
+       }
+    }
 
 
 	//keep communicating with server
 	uint8_t hello[] = "hello to server\n";
 	send(sock , hello , 24 , 0);
-	uint8_t sampleBuf[(samplePacketLength+timestampLength)*17];
-
+	uint8_t sampleBuf[(samplePacketLength+timestampLength)*17+4]; //+4 for ntp time, which is 32 bit
+	uint32_t ntp_time_send;
 
 	printf("Starting main thread\n");
 
 	while(1)
 	{
-		//readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
-//    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)*17 , 0) < 0)
-//    	        {
-//    	            puts("Send failed");
-//    	            return 1;
-//    	        }
+		readpru = read(pru_adc, sampleBuf, samplePacketLength+timestampLength);
+		ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
+		sampleBuf[(samplePacketLength+timestampLength)*17] = (uint8_t)(ntp_time_send&0xFF000000);
+		sampleBuf[(samplePacketLength+timestampLength)*17+1] = (uint8_t)(ntp_time_send&0x00FF0000);
+		sampleBuf[(samplePacketLength+timestampLength)*17+2] = (uint8_t)(ntp_time_send&0x0000FF00);
+		sampleBuf[(samplePacketLength+timestampLength)*17+3] = (uint8_t)(ntp_time_send&0x000000FF);
+    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)*17+4 , 0) < 0)
+		{
+			puts("Send failed");
+			return 1;
+		}
 
-    	if( send(sock , hello , 24 , 0)  < 0)
-    	        {
-    	            puts("Send failed");
-    	            return 1;
-    	        }
+		
+			
 
+ /*   	if( send(sock , hello , 24 , 0)  < 0)
+		{
+			puts("Send failed");
+			return 1;
+		}
+*/
 
     }
-
+    
+    /* some management */
+    pthread_join(new_thread, NULL);
+    pthread_mutex_destroy(&mutex);
     close(sock);
     return 0;
 
@@ -207,7 +229,7 @@ void * ntp( void * ntp_thread_arg )
 	 * it should be a total of 48 bytes long
 	*/
 	unsigned char msg[48]={010,0,0,0,0,0,0,0,0}; //NTP message
-	int i, tmit;
+	uint32_t i, tmit;
 	
 	while(1)
 	{
@@ -261,8 +283,12 @@ void * ntp( void * ntp_thread_arg )
 		//printf("%d-%d=%d\n",i,tmit,i-tmit);
 		printf("System time is %d seconds off\n",i-tmit);
 
+		/* mutex for thread synchrinisation */
+		pthread_mutex_lock(&mutex);
+		ntp_time = tmit;
+		pthread_mutex_unlock(&mutex);
 		
-		sleep(1);
+		usleep(100000); //sleep for 1/10th of a second
 	}	
 }
 
@@ -291,6 +317,5 @@ int getMac(char mac[6])
 	
 	
 	
-
 
 
