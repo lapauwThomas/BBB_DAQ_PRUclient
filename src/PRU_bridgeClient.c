@@ -17,7 +17,7 @@ int pru_adc;
 int maxRetries = 5;
 uint8_t packet[macLength + samplePacketLength + timestampLength];
 pthread_mutex_t mutex;
-uint32_t ntp_time;
+volatile uint32_t ntp_time;
 
 
 int main(int argc , char *argv[])
@@ -178,9 +178,10 @@ int main(int argc , char *argv[])
 int count = 0;
 	while(1)
 	{
+		 printf("Read  %i \n",count);
 		readpru = read(pru_adc, sampleBuf, (samplePacketLength+timestampLength));
 
-	//	printf("MAIN Time: %s ",ctime(&ntp_time));
+		printf("MAIN Time: %s ",ctime(&ntp_time));
 		ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
 	sampleBuf[(samplePacketLength+timestampLength)] =   (uint8_t)((ntp_time_send&0xFF000000)>>24);
 	sampleBuf[(samplePacketLength+timestampLength)+1] = (uint8_t)((ntp_time_send&0x00FF0000)>>16);
@@ -189,20 +190,14 @@ int count = 0;
     	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)+4 , 0) < 0)
 		{
     	    /* some management */
-    	    pthread_join(new_thread, NULL);
-    	    pthread_mutex_destroy(&mutex);
-    	    close(sock);
+
 			puts("Send failed");
 			return 1;
 		}
     	if(count > 2000){
+			return 1;
 
-    		    	    /* some management */
-    		    	    pthread_join(new_thread, NULL);
-    		    	    pthread_mutex_destroy(&mutex);
-    		    	    close(sock);
-    					puts("Send failed");
-    					return 1;
+
 
     	}
     	count++;
