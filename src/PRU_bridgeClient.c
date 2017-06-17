@@ -15,7 +15,7 @@
 /*	global variable	*/
 int pru_adc;
 int maxRetries = 5;
-uint8_t packet[macLength + samplePacketLength + timestampLength];
+uint8_t packet[480];
 pthread_mutex_t mutex;
 volatile uint32_t ntp_time;
 
@@ -26,6 +26,7 @@ int main(int argc , char *argv[])
 	/*	Initialise server connection  */
 	int sock;
     struct sockaddr_in server;
+    socklen_t m = sizeof(server);
     //char message[1000] , server_reply[2000];
 
     //getting mac from ETH0
@@ -41,7 +42,9 @@ int main(int argc , char *argv[])
 
 
     //Create socket
-    sock = socket(AF_INET , SOCK_STREAM , 0);
+   // sock = socket(AF_INET , SOCK_STREAM , 0);
+ //   sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    sock = socket(AF_INET,SOCK_DGRAM,0);
     if (sock == -1)
     {
         printf("Could not create socket");
@@ -64,19 +67,21 @@ int main(int argc , char *argv[])
     }
     server.sin_family = AF_INET;
 
-    //Connect to remote server
-    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
-    {
-        perror("connect failed. Error \n");
-        return 1;
-    }
 
-    printf("Connected to server\n");
 
-    if( send(sock , mac , 6 , 0) < 0) {
-    	printf("Sending MAC failed");
-			return 1;
-	}
+//    //Connect to remote server
+//    if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
+//    {
+//        perror("connect failed. Error \n");
+//        return 1;
+//    }
+
+//    printf("Connected to server\n");
+//
+//    if( send(sock , mac , 6 , 0) < 0) {
+//    	printf("Sending MAC failed");
+//			return 1;
+//	}
 
     printf("starting NTP stuff");
 
@@ -135,6 +140,15 @@ int main(int argc , char *argv[])
     }
 
 
+    FILE *f = fopen("file.txt", "w");
+    if (f == NULL)
+    {
+        printf("Error opening file!\n");
+        exit(1);
+    }
+
+
+
 //
 //	//keep communicating with server
 //	uint8_t hello[] = "hello to server\n";
@@ -143,9 +157,14 @@ int main(int argc , char *argv[])
 	uint32_t ntp_time_send;
 
 
+
+
+    while(ntp_time == 0){}
+
 	// open the PRU character device
     ssize_t readpru, pru_adc_command;
     int retries = 0;
+
     while(retries < maxRetries){
        pru_adc = open("/dev/rpmsg_pru30", O_RDWR);
 
@@ -171,54 +190,61 @@ int main(int argc , char *argv[])
        }
     }
     printf(".\n");
-    	uint8_t hello[] = "hello to server\n";
-    	send(sock , hello , 24 , 0);
+    //	uint8_t hello[] = "hello to server\n";
+    //	send(sock , hello , 24 , 0);
     printf(".\n");
 
-int count = 0;
+    int count = 0;
+
+
 	while(1)
 	{
-		 printf("Read  %i \n",count);
-		readpru = read(pru_adc, sampleBuf, (samplePacketLength+timestampLength));
 
-		printf("MAIN Time: %s ",ctime(&ntp_time));
-		ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
-	sampleBuf[(samplePacketLength+timestampLength)] =   (uint8_t)((ntp_time_send&0xFF000000)>>24);
-	sampleBuf[(samplePacketLength+timestampLength)+1] = (uint8_t)((ntp_time_send&0x00FF0000)>>16);
-	sampleBuf[(samplePacketLength+timestampLength)+2] = (uint8_t)((ntp_time_send&0x0000FF00)>>8);
-	sampleBuf[(samplePacketLength+timestampLength)+3] = (uint8_t)((ntp_time_send&0x000000FF));
-    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)+4 , 0) < 0)
-		{
-    	    /* some management */
+////		 printf("Read  %i \n",count);
+//		readpru = read(pru_adc, sampleBuf, (samplePacketLength+timestampLength));
+//
+//		//printf("MAIN Time: %s ",ctime(&ntp_time));
+//		ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
+//	sampleBuf[(samplePacketLength+timestampLength)] =   (uint8_t)((ntp_time_send&0xFF000000)>>24);
+//	sampleBuf[(samplePacketLength+timestampLength)+1] = (uint8_t)((ntp_time_send&0x00FF0000)>>16);
+//	sampleBuf[(samplePacketLength+timestampLength)+2] = (uint8_t)((ntp_time_send&0x0000FF00)>>8);
+//	sampleBuf[(samplePacketLength+timestampLength)+3] = (uint8_t)((ntp_time_send&0x000000FF));
+//
+//
+////
+////		for (int i = 0; i < 24+timestampLength + 4; i++){
+////			fprintf(f,"%02X ", sampleBuf[i]);
+////		}
+////		fprintf(f,"\n");
+//
 
-			puts("Send failed");
+//		sendto(sock,sampleBuf,24+8,0,(struct sockaddr *)&server,m);
+
+//    	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)+4 , 0) < 0)
+//		{
+//    	    /* some management */
+//
+//			puts("Send failed");
+//			return 1;
+//		}
+    	if(count > 200000/17){
 			return 1;
-		}
-    	if(count > 2000){
-			return 1;
-
-
-
     	}
     	count++;
-//
-//
-//    	readpru = read(pru_adc, sampleBuf, (samplePacketLength+timestampLength)*17);
-//
-//    	//	printf("MAIN Time: %s ",ctime(&ntp_time));
-//    	//	ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
-//    	sampleBuf[(samplePacketLength+timestampLength)*17] =   (uint8_t)((ntp_time_send&0xFF000000)>>24);
-//    	sampleBuf[(samplePacketLength+timestampLength)*17+1] = (uint8_t)((ntp_time_send&0x00FF0000)>>16);
-//    	sampleBuf[(samplePacketLength+timestampLength)*17+2] = (uint8_t)((ntp_time_send&0x0000FF00)>>8);
-//    	sampleBuf[(samplePacketLength+timestampLength)*17+3] = (uint8_t)((ntp_time_send&0x000000FF);
-//        	if( send(sock , sampleBuf , (samplePacketLength+timestampLength)*17 , 0) < 0)
-//    		{
-//    			puts("Send failed");
-//    			return 1;
-//    		}
 
 
-    }
+    	readpru = read(pru_adc, sampleBuf, 476);
+
+    	//	printf("MAIN Time: %s ",ctime(&ntp_time));
+    		ntp_time_send = ntp_time; //fetch ntp time ASAP when packets arrive
+    	sampleBuf[(samplePacketLength+timestampLength)*17] 		=  (uint8_t)((ntp_time_send&0xFF000000)>>24);
+    	sampleBuf[(samplePacketLength+timestampLength)*17+1]	= (uint8_t)((ntp_time_send&0x00FF0000)>>16);
+    	sampleBuf[(samplePacketLength+timestampLength)*17+2] 	= (uint8_t)((ntp_time_send&0x0000FF00)>>8);
+    	sampleBuf[(samplePacketLength+timestampLength)*17+3]	= (uint8_t)((ntp_time_send&0x000000FF));
+
+        sendto(sock,sampleBuf,480,0,(struct sockaddr *)&server,m);
+
+	}
     
     /* some management */
     pthread_join(new_thread, NULL);
@@ -318,7 +344,7 @@ void * ntp( void * ntp_thread_arg )
 		ntp_time = tmit;
 		pthread_mutex_unlock(&mutex);
 		
-		usleep(300000); //sleep for 1/10th of a second
+		usleep(500000); //sleep for 1/10th of a second
 	}	
 }
 
